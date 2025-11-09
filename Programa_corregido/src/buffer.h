@@ -3,12 +3,14 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <pthread.h>
 
 typedef struct {
     uint8_t *data;
     size_t size;
     volatile unsigned head;
     volatile unsigned tail;
+    pthread_mutex_t lock;
 } RingBuffer;
 
 int rb_init(RingBuffer* rb, size_t size);
