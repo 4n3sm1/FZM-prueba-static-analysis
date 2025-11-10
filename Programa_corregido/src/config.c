@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-int load_config(const char* path, AppConfig* cfg) {
-    if (path == NULL || cfg == NULL) {
+int load_config(const char* path, AppConfig* cfg, uint32_t* crc) {
+    if (path == NULL || cfg == NULL || crc == NULL) {
        return -1;
     }
     FILE* f = fopen(path, "r");
@@ -15,6 +15,7 @@ int load_config(const char* path, AppConfig* cfg) {
 
     char line[64];
     char key[64], value[128];
+    *crc = 0;
 
     while (!feof(f)) {
         if (fgets(line, sizeof(line), f) == NULL) {
@@ -38,6 +39,8 @@ int load_config(const char* path, AppConfig* cfg) {
                     strcat(cfg->log_path, "/");
                     strcat(cfg->log_path, tmp);
                 }
+            }else if (strcmp(key, "crc") == 0) {
+                *crc = (uint32_t)strtoul(value, NULL, 16);
             }
         }
     }
@@ -45,18 +48,11 @@ int load_config(const char* path, AppConfig* cfg) {
     return 0;
 }
 
-/* Vista determinista (para CRC) */
-typedef struct {
-    int32_t threshold;
-    int32_t enable_threads;
-    char    log_path[64];
-} ConfigCrcView;
-
 int config_crc_view_serialize(const AppConfig* cfg, void* out_buf, size_t out_size) {
     if ((cfg == NULL) || (out_buf == NULL) || (out_size < sizeof(ConfigCrcView))) {
         return -1;
     }
-    ConfigCrcView v;
+    ConfigCrcView v = {0};
     v.threshold      = (int32_t)cfg->threshold;
     v.enable_threads = (int32_t)cfg->enable_threads;
     memset(v.log_path, 0, sizeof v.log_path);

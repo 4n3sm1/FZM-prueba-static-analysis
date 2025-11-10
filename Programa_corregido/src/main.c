@@ -54,8 +54,9 @@ int main(int argc, char** argv) {
         printf("Usage: %s <config>\n", argv[0]);
     }
 
-    AppConfig cfg;
-    load_config((argc > 1) ? argv[1] : "tests/example.cfg", &cfg);
+    AppConfig cfg = {0};
+    uint32_t crc_stored = 0;
+    load_config((argc > 1) ? argv[1] : "tests/example.cfg", &cfg, &crc_stored);
 
     RingBuffer rb;
     rb_init(&rb, 16);
@@ -64,10 +65,16 @@ int main(int argc, char** argv) {
     
     pthread_create(&th_cons, NULL, consumer, &rb);
     pthread_create(&th_prod, NULL, producer, &rb);
-    
-    char data[32] = "hello";
-    uint32_t c = crc32_compute(data, strlen(data));
-    printf("CRC=%08x\n", c);
+
+    uint8_t serialized[sizeof(ConfigCrcView)];
+    int len = config_crc_view_serialize(&cfg, serialized, sizeof(serialized));
+    uint32_t crc_calc = crc32_compute(serialized, len);
+
+    if (crc_stored != crc_calc){
+        printf("Invalid CRC: saved=%08x, stored=%08x\n", crc_stored, crc_calc);
+        return -1;
+    }
+    printf("CRC correct: saved=%08x, stored=%08x\n", crc_stored, crc_calc);
 
     pthread_join(th_prod, NULL);
     pthread_join(th_cons, NULL);
